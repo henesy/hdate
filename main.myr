@@ -1,0 +1,189 @@
+use date
+use std
+
+// NOTE: Longest form must be first.
+var formats = [
+	"%b %d %Y, %I:%M %P", /* Jan 1 2016, 11:00 pm */
+	"%Y-%m-%d %H:%M:%S",  /* 2016-01-01 23:00:00 */
+	"%Y-%m-%d",           /* 2016-01-01 */
+]
+
+const strfindfirst = {haytack, needles -> std.option((std.size, std.size))
+	var result = `std.None
+
+   	for n : needles
+        match std.strfind(haytack, n)
+   		| `std.Some x:
+   			match result
+   			| `std.Some (y, _):
+   				if x < y
+   					result = `std.Some (x, n.len)
+   				;;
+   			| `std.None:
+   				result = `std.Some (x, n.len)
+   			;;
+   		| _:
+   		;;
+    ;;
+
+    -> result
+}
+
+type strsplitmiter = struct
+	input  : byte[:]
+	delims : byte[:][:]
+;;
+
+const strsplitm = {input, delims -> strsplitmiter
+	-> [.input=input, .delims=delims]
+}
+
+impl iterable strsplitmiter -> byte[:] =
+    __iternext__ = {itp, valp
+    	if itp.input.len == 0
+    		-> false
+    	;;
+
+    	match strfindfirst(itp.input, itp.delims)
+    	| `std.Some (p, l):
+    		valp# = itp.input[:p]
+    		itp.input = itp.input[p+l:]
+    	| `std.None:
+    		valp# = itp.input
+    		itp.input = itp.input[itp.input.len:]
+    	;;
+
+        -> true
+    }
+
+    __iterfin__ = {itp, valp
+        /* nothing to clean up */
+    }
+;;
+
+const mkperiod = {s, n -> std.option(date.period)
+	var p
+
+	match s
+	| "sec":     p = `date.Second n
+	| "second":  p = `date.Second n
+	| "seconds": p = `date.Second n
+	| "min":     p = `date.Minute n
+	| "mins":    p = `date.Minute n
+	| "minute":  p = `date.Minute n
+	| "minutes": p = `date.Minute n
+	| "hr":      p = `date.Hour n
+	| "hrs":     p = `date.Hour n
+	| "hour":    p = `date.Hour n
+	| "hours":   p = `date.Hour n
+	| "day":     p = `date.Day n
+	| "days":    p = `date.Day n
+	| "week":    p = `date.Day (7 * n)
+	| "weeks":   p = `date.Day (7 * n)
+	| "month":   p = `date.Month n
+	| "months":  p = `date.Month n
+	| "year":    p = `date.Year n
+	| "years":   p = `date.Year n
+	| _:         -> `std.None
+	;;
+
+	-> `std.Some p
+}
+
+const hperiod = {s : byte[:] -> std.option(date.period)
+	if std.hasprefix(s, "a ")
+		s = s[2:]
+	;;
+
+	var tokens = std.strtok(s)
+	var number = 1
+	var result = `std.None
+
+	for t : tokens
+		match mkperiod(t, number)
+		| `std.Some p:
+			result = `std.Some p
+			break
+		| `std.None:
+			match std.intparse(t)
+			| `std.Some n: number = n
+			| `std.None: break
+			;;
+		;;
+	;;
+
+	std.slfree(tokens)
+
+	-> result
+}
+
+const ntimeago = {s : byte[:] -> std.option(date.instant)
+	if !std.hassuffix(s, " ago")
+		-> `std.None
+	;;
+
+	s = s[:s.len-4]
+	var now = date.utcnow()
+
+	for t : strsplitm(s, [", ", " and "][:])
+		match hperiod(t)
+		| `std.Some p: now = date.subperiod(now, p)
+		| `std.None:   -> `std.None
+		;;
+	;;
+
+	-> `std.Some now
+}
+
+// TODO: 2 weeks from now!
+// TODO: Error handling. The user has to know what went wrong.
+const hdate = {s : byte[:] -> std.option(date.instant)
+	var now = date.utcnow()
+
+	match s
+	| "now":                      -> `std.Some now
+	| "today":                    -> `std.Some now
+	| "tomorrow":                 -> `std.Some date.addperiod(now, `date.Day 1)
+	| "yesterday":                -> `std.Some date.subperiod(now, `date.Day 1)
+	| "the day after tomorrow":   -> `std.Some date.addperiod(now, `date.Day 2)
+	| "the day before yesterday": -> `std.Some date.subperiod(now, `date.Day 2)
+	| "last week":                -> `std.Some date.subperiod(now, `date.Day 7)
+	| "next week":                -> `std.Some date.addperiod(now, `date.Day 7)
+	| _:                          /* do nothing */
+	;;
+
+	if std.hassuffix(s, " ago")
+		-> ntimeago(s)
+	;;
+
+	// TODO: Go through some patterns!
+	// TODO: Zero pad numbers.
+	for f : formats
+		std.put("{}\n", f)
+		match date.parsefmt(f, s)
+		| `std.Ok r:  -> `std.Some r
+		| `std.Err e: continue
+ 		;;
+	;;
+
+	-> `std.None
+}
+
+const main = {
+	std.put("period: {}\n", ntimeago("3 seconds ago"))
+	std.put("period: {}\n", ntimeago("a day ago"))
+	std.put("period: {}\n", ntimeago("2 years ago"))
+	std.put("period: {}\n", ntimeago("1 year and 2 months ago"))
+	std.put("period: {}\n", ntimeago("1 year and 2 months ago"))
+	std.put("period: {}\n", ntimeago("1 year, 2 months and 3 days ago"))
+	std.put("period: {}\n", ntimeago("2017 years and 4 days ago"))
+	std.put("period: {}\n", ntimeago("2000 years garbage"))
+	std.put("hdate:  {}\n", hdate("today"))
+	std.put("hdate:  {}\n", hdate("tomorrow"))
+	std.put("hdate:  {}\n", hdate("yesterday"))
+	std.put("hdate:  {}\n", hdate("a day ago"))
+	std.put("hdate:  {}\n", hdate("5 days ago"))
+	std.put("hdate:  {}\n", hdate("Jan 01 2016, 11:00 pm"))
+	std.put("hdate:  {}\n", hdate("2016-01-01"))
+	std.put("hdate:  {}\n", hdate("2016-01-01 23:00:00"))
+}
