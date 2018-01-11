@@ -1,32 +1,37 @@
 use date
 use std
 
-// NOTE: Longest form must be first.
+// TODO: Longest form must be first.
 var formats = [
-	"%b %d %Y, %I:%M %P", /* Jan 1 2016, 11:00 pm */
-	"%Y-%m-%d %H:%M:%S",  /* 2016-01-01 23:00:00 */
-	"%Y-%m-%d",           /* 2016-01-01 */
+	"%b %d %Y, %I:%M %P", /* Jan 22 2016, 11:00 pm */
+	"%Y-%m-%d %H:%M:%S",  /* 2016-01-22 23:00:00 */
+	"%Y-%m-%d",           /* 2016-01-22 */
+	"%m/%d/%y",           /* 22-01-16 */
+	"%y-%m-%d",           /* 16-22-31 */
+	"%H:%M:%S %P",        /* 23:00:00 pm */
+	"%H:%M %P",           /* 23:00:00 pm */
+	"%m %B %Y",           /* 02 January 2016 */
 ]
 
 const strfindfirst = {haytack, needles -> std.option((std.size, std.size))
 	var result = `std.None
 
-   	for n : needles
-        match std.strfind(haytack, n)
-   		| `std.Some x:
-   			match result
-   			| `std.Some (y, _):
-   				if x < y
-   					result = `std.Some (x, n.len)
-   				;;
-   			| `std.None:
-   				result = `std.Some (x, n.len)
-   			;;
-   		| _:
-   		;;
-    ;;
+	for n : needles
+		match std.strfind(haytack, n)
+		| `std.Some x:
+			match result
+			| `std.Some (y, _):
+				if x < y
+					result = `std.Some (x, n.len)
+				;;
+			| `std.None:
+				result = `std.Some (x, n.len)
+			;;
+		| _:
+		;;
+	;;
 
-    -> result
+	-> result
 }
 
 type strsplitmiter = struct
@@ -39,26 +44,26 @@ const strsplitm = {input, delims -> strsplitmiter
 }
 
 impl iterable strsplitmiter -> byte[:] =
-    __iternext__ = {itp, valp
-    	if itp.input.len == 0
-    		-> false
-    	;;
+	__iternext__ = {itp, valp
+		if itp.input.len == 0
+			-> false
+		;;
 
-    	match strfindfirst(itp.input, itp.delims)
-    	| `std.Some (p, l):
-    		valp# = itp.input[:p]
-    		itp.input = itp.input[p+l:]
-    	| `std.None:
-    		valp# = itp.input
-    		itp.input = itp.input[itp.input.len:]
-    	;;
+		match strfindfirst(itp.input, itp.delims)
+		| `std.Some (p, l):
+			valp# = itp.input[:p]
+			itp.input = itp.input[p+l:]
+		| `std.None:
+			valp# = itp.input
+			itp.input = itp.input[itp.input.len:]
+		;;
 
-        -> true
-    }
+		-> true
+	}
 
-    __iterfin__ = {itp, valp
-        /* nothing to clean up */
-    }
+	__iterfin__ = {itp, valp
+		/* nothing to clean up */
+	}
 ;;
 
 const mkperiod = {s, n -> std.option(date.period)
@@ -118,19 +123,15 @@ const hperiod = {s : byte[:] -> std.option(date.period)
 }
 
 const ntimeago = {s : byte[:] -> std.option(date.instant)
-	if !std.hassuffix(s, " ago")
+	var f
+
+	if std.hassuffix(s, " ago")
+		f = date.subperiod
+	elif std.hassuffix(s, " from now")
+		f = date.addperiod
+	else
 		-> `std.None
-       ;;
-
-    var f // Possibly add function signature here.
-
-    if std.hassuffix(s, “ ago”)
-        f = date.subperiod
-    else if std.hassuffix(s, “ from now”)
-        f = date.addperiod
-    else
-        -> `std.None
-    ;;
+	;;
 
 	s = s[:s.len-4]
 	var now = date.utcnow()
@@ -161,18 +162,19 @@ const hdate = {s : byte[:] -> std.option(date.instant)
 	| _:                          /* do nothing */
 	;;
 
-	if std.hassuffix(s, " ago") || std.hassuffix(s, “ from now”)
+	if std.hassuffix(s, " ago") || std.hassuffix(s, " from now")
 		-> ntimeago(s)
 	;;
 
-	// TODO: Go through some patterns!
 	// TODO: Zero pad numbers.
+	// Using parsefmt with a list of patterns is only going to work in
+	// Some cases? Is there a check on something thats a alid day or
+	// month number?
 	for f : formats
-		std.put("{}\n", f)
 		match date.parsefmt(f, s)
 		| `std.Ok r:  -> `std.Some r
 		| `std.Err e: continue
- 		;;
+		;;
 	;;
 
 	-> `std.None
@@ -195,4 +197,5 @@ const main = {
 	std.put("hdate:  {}\n", hdate("Jan 01 2016, 11:00 pm"))
 	std.put("hdate:  {}\n", hdate("2016-01-01"))
 	std.put("hdate:  {}\n", hdate("2016-01-01 23:00:00"))
+	std.put("hdate:  {}\n", hdate("2 years from now"))
 }
