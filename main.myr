@@ -120,14 +120,24 @@ const hperiod = {s : byte[:] -> std.option(date.period)
 const ntimeago = {s : byte[:] -> std.option(date.instant)
 	if !std.hassuffix(s, " ago")
 		-> `std.None
-	;;
+       ;;
+
+    var f // Possibly add function signature here.
+
+    if std.hassuffix(s, “ ago”)
+        f = date.subperiod
+    else if std.hassuffix(s, “ from now”)
+        f = date.addperiod
+    else
+        -> `std.None
+    ;;
 
 	s = s[:s.len-4]
 	var now = date.utcnow()
 
 	for t : strsplitm(s, [", ", " and "][:])
 		match hperiod(t)
-		| `std.Some p: now = date.subperiod(now, p)
+		| `std.Some p: now = f(now, p)
 		| `std.None:   -> `std.None
 		;;
 	;;
@@ -135,7 +145,6 @@ const ntimeago = {s : byte[:] -> std.option(date.instant)
 	-> `std.Some now
 }
 
-// TODO: 2 weeks from now!
 // TODO: Error handling. The user has to know what went wrong.
 const hdate = {s : byte[:] -> std.option(date.instant)
 	var now = date.utcnow()
@@ -152,7 +161,7 @@ const hdate = {s : byte[:] -> std.option(date.instant)
 	| _:                          /* do nothing */
 	;;
 
-	if std.hassuffix(s, " ago")
+	if std.hassuffix(s, " ago") || std.hassuffix(s, “ from now”)
 		-> ntimeago(s)
 	;;
 
