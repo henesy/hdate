@@ -1,0 +1,14 @@
+use std
+use testr
+use date
+
+const main = {
+    testr.run([
+        [.name="nop", .fn={ctx; testr.ok(ctx)}],
+    ][:])
+}
+
+const equal = {a : date.instant, b : byte[:] -> bool
+	var as = std.fmt("{}", a)
+	-> std.streq(as, b)
+}
