@@ -10,5 +10,5 @@ const main = {
 
 const equal = {a : date.instant, b : byte[:] -> bool
 	var as = std.fmt("{}", a)
-	-> std.streq(as, b)
+	-> std.eq(as, b)
 }
