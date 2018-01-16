@@ -5,14 +5,21 @@ use hdate
 
 const main = {
     testr.run([
-        [.name="nop", .fn={ctx; check_ago(ctx, "3 seconds ago", `date.Second 3)}],
-        [.name="nop", .fn={ctx; check_ago(ctx, "1 year ago ago", `date.Year 1)}],
+        [.name="nop", .fn={ctx; check_ago(ctx, "3 seconds ago", [`date.Second 3][:])}],
+        [.name="nop", .fn={ctx; check_ago(ctx, "1 year ago ago", [`date.Year 1][:])}],
+        [.name="nop", .fn={ctx; check_ago(ctx,
+            "1 year and 2 months ago",
+            [`date.Year 1, `date.Month 2][:])}],
     ][:])
 }
 
-const check_ago = {ctx : testr.ctx#, a : byte[:], b : date.period
+const check_ago = {ctx : testr.ctx#, a : byte[:], b : date.period[:]
     var result
-    var expected = date.subperiod(date.utcnow(), b)
+    var expected = date.utcnow()
+
+    for p : b
+        expected = date.subperiod(expected, p)
+    ;;
 
     match hdate.hdate(a)
     | `std.Some n: result = n
