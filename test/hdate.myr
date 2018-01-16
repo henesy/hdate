@@ -1,14 +1,26 @@
 use std
 use testr
 use date
+use hdate
 
 const main = {
     testr.run([
-        [.name="nop", .fn={ctx; testr.ok(ctx)}],
+        [.name="nop", .fn={ctx; check_ago(ctx, "3 seconds ago", `date.Second 3)}],
+        [.name="nop", .fn={ctx; check_ago(ctx, "1 year ago ago", `date.Year 1)}],
     ][:])
 }
 
-const equal = {a : date.instant, b : byte[:] -> bool
-	var as = std.fmt("{}", a)
-	-> std.eq(as, b)
+const check_ago = {ctx : testr.ctx#, a : byte[:], b : date.period
+    var result
+    var expected = date.subperiod(date.utcnow(), b)
+
+    match hdate.hdate(a)
+    | `std.Some n: result = n
+    | `std.None:   -> testr.fail(ctx, "got none")
+    ;;
+
+    var as = std.fmt("{}", result)
+	var bs = std.fmt("{}", expected)
+
+	testr.check(ctx, std.eq(as, bs), "check")
 }

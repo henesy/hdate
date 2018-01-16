@@ -1,1 +1,1 @@
-bin hdate = hdate.myr ;;
+lib hdate = hdate.myr ;;
