@@ -3,7 +3,7 @@ use testr
 use date
 use hdate
 
-type n_ago_test = struct
+type n_period_test = struct
 	input : byte[:]
 	periods : date.period[:]
 ;;
@@ -11,7 +11,7 @@ type n_ago_test = struct
 const main = {
 	var now = date.utcnow()
 
-	var n_time_ago_tests : n_ago_test[:] = [
+	var n_time_ago_tests : n_period_test[:] = [
 		[.input="3 sec ago", .periods=[`date.Second 3][:]],
 		[.input="1 second ago", .periods=[`date.Second 1][:]],
 		[.input="3 seconds ago", .periods=[`date.Second 3][:]],
@@ -32,7 +32,7 @@ const main = {
 		[.input="1 year ago", .periods=[`date.Year 1][:]],
 		[.input="3 years ago", .periods=[`date.Year 3][:]],
 	][:]
-	var n_time_from_now_tests : n_ago_test[:] = [
+	var n_time_from_now_tests : n_period_test[:] = [
 		[.input="3 sec from now", .periods=[`date.Second 3][:]],
 		[.input="1 second from now", .periods=[`date.Second 1][:]],
 		[.input="3 seconds from now", .periods=[`date.Second 3][:]],
@@ -54,41 +54,41 @@ const main = {
 		[.input="3 years from now", .periods=[`date.Year 3][:]],
 	][:]
 
-    testr.run([
-        [.name="n_time_ago", .fn={ctx
-            for t : n_time_ago_tests
-            	check_period(ctx, t.input, subperiods(now, t.periods))
-            ;;
-        }],
-        [.name="n_time_from_now", .fn={ctx
-            for t : n_time_from_now_tests
-            	check_period(ctx, t.input, addperiods(now, t.periods))
-            ;;
-        }],
-    ][:])
+	testr.run([
+		[.name="n_time_ago", .fn={ctx
+			for t : n_time_ago_tests
+				check_period(ctx, t.input, subperiods(now, t.periods))
+			;;
+		}],
+		[.name="n_time_from_now", .fn={ctx
+			for t : n_time_from_now_tests
+				check_period(ctx, t.input, addperiods(now, t.periods))
+			;;
+		}],
+	][:])
 }
 
 const subperiods = {d : date.instant, dts : date.period[:] -> date.instant
-    for dt : dts
-        d = date.subperiod(d, dt)
-    ;;
-    -> d
+	for dt : dts
+		d = date.subperiod(d, dt)
+	;;
+	-> d
 }
 
 const addperiods = {d : date.instant, dts : date.period[:] -> date.instant
-    for dt : dts
-        d = date.addperiod(d, dt)
-    ;;
-    -> d
+	for dt : dts
+		d = date.addperiod(d, dt)
+	;;
+	-> d
 }
 
 const check_period = {ctx : testr.ctx#, a : byte[:], b : date.instant
-    match hdate.hdate(a)
-    | `std.Some n:
-    	var as = std.fmt("{}", n)
-    	var bs = std.fmt("{}", b)
-    	testr.check(ctx, std.eq(as, bs), std.fmt("{}: {} != {}", a, as, bs))
-    | `std.None:
-    	testr.fail(ctx, "got none")
-    ;;
+	match hdate.hdate(a)
+	| `std.Some n:
+		var as = std.fmt("{}", n)
+		var bs = std.fmt("{}", b)
+		testr.check(ctx, std.eq(as, bs), std.fmt("{}: {} != {}", a, as, bs))
+	| `std.None:
+		testr.fail(ctx, "got none")
+	;;
 }
